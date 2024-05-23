@@ -141,7 +141,7 @@ func (p *pma) saveFile() string {
 	if !ok {
 		// InvalidateUnsavable should have caused all such pmas to be
 		// invalidated.
-		panic(fmt.Sprintf("Can't save pma with non-MemoryFile of type %T", p.file))
+		// log.Warningf("Can't save pma with non-MemoryFile of type %T", p.file))
 	}
 	if !mf.IsSavable() {
 		panic(fmt.Sprintf("Can't save pma because its MemoryFile is not savable: %v", mf))

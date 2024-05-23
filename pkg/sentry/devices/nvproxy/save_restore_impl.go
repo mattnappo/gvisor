@@ -19,13 +19,15 @@ package nvproxy
 
 import (
 	goContext "context"
+
+	"gvisor.dev/gvisor/pkg/log"
 )
 
 func (nvp *nvproxy) beforeSaveImpl() {
 	nvp.objsLock()
 	defer nvp.objsUnlock()
 	if len(nvp.clients) != 0 {
-		panic("can't save with live nvproxy clients")
+		log.Warningf("can't save with live nvproxy clients")
 	}
 }
 
@@ -34,17 +36,17 @@ func (nvp *nvproxy) afterLoadImpl(goContext.Context) {
 }
 
 func (fd *frontendFD) beforeSaveImpl() {
-	panic("nvproxy.frontendFD is not saveable")
+	log.Warningf("nvproxy.frontendFD is not saveable")
 }
 
 func (fd *frontendFD) afterLoadImpl(goContext.Context) {
-	panic("nvproxy.frontendFD is not restorable")
+	log.Warningf("nvproxy.frontendFD is not restorable")
 }
 
 func (fd *uvmFD) beforeSaveImpl() {
-	panic("nvproxy.uvmFD is not saveable")
+	log.Warningf("nvproxy.uvmFD is not saveable")
 }
 
 func (fd *uvmFD) afterLoadImpl(goContext.Context) {
-	panic("nvproxy.uvmFD is not restorable")
+	log.Warningf("nvproxy.uvmFD is not restorable")
 }

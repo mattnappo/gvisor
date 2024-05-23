@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	"gvisor.dev/gvisor/pkg/context"
+	"gvisor.dev/gvisor/pkg/log"
 	"gvisor.dev/gvisor/pkg/sentry/pgalloc"
 )
 
@@ -141,7 +142,7 @@ func (p *pma) saveFile() string {
 	if !ok {
 		// InvalidateUnsavable should have caused all such pmas to be
 		// invalidated.
-		// log.Warningf("Can't save pma with non-MemoryFile of type %T", p.file))
+		log.Warningf("Can't save pma with non-MemoryFile of type %T", p.file)
 	}
 	if !mf.IsSavable() {
 		panic(fmt.Sprintf("Can't save pma because its MemoryFile is not savable: %v", mf))

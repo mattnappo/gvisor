@@ -38,6 +38,7 @@ import (
 	"gvisor.dev/gvisor/pkg/log"
 	"gvisor.dev/gvisor/pkg/marshal"
 	"gvisor.dev/gvisor/pkg/sentry/devices/nvproxy/nvconf"
+	"gvisor.dev/gvisor/pkg/sentry/kernel"
 	"gvisor.dev/gvisor/pkg/sentry/vfs"
 	"gvisor.dev/gvisor/pkg/sync"
 )
@@ -203,6 +204,9 @@ type nvproxy struct {
 	procDriverNvidiaParams string
 	devInfo                DeviceInfo
 	regularDevs            [nvgpu.NV_MINOR_DEVICE_NUMBER_REGULAR_MAX + 1]*frontendDevice
+
+	// k is set during Open and used only for diagnostic messages at save time.
+	k *kernel.Kernel `state:"nosave"`
 
 	fdsMu       fdsMutex `state:"nosave"`
 	frontendFDs map[*frontendFD]struct{}

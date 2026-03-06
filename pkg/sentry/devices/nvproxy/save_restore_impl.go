@@ -19,6 +19,12 @@ package nvproxy
 
 import (
 	goContext "context"
+	"fmt"
+	"strings"
+
+	"gvisor.dev/gvisor/pkg/context"
+	"gvisor.dev/gvisor/pkg/sentry/kernel"
+	"gvisor.dev/gvisor/pkg/sentry/vfs"
 )
 
 func (nvp *nvproxy) beforeSaveImpl() {
@@ -33,8 +39,64 @@ func (nvp *nvproxy) afterLoadImpl(goContext.Context) {
 	// no-op
 }
 
+// nvidiaFDHolders walks all guest task FD tables and returns a description of
+// which guest PIDs hold FDs whose impl matches the given predicate.
+func nvidiaFDHolders(k *kernel.Kernel, match func(vfs.FileDescriptionImpl) bool) string {
+	if k == nil {
+		return "(kernel reference unavailable)"
+	}
+	ctx := context.Background()
+	type holderInfo struct {
+		pid kernel.ThreadID
+		fds []int32
+	}
+	var holders []holderInfo
+	seen := make(map[*kernel.FDTable]bool)
+	k.TaskSet().ForEachThreadGroup(func(tg *kernel.ThreadGroup, leader *kernel.Task) {
+		if leader == nil {
+			return
+		}
+		fdTable := leader.FDTable()
+		if fdTable == nil || seen[fdTable] {
+			return
+		}
+		seen[fdTable] = true
+		var matchedFDs []int32
+		for _, guestFD := range fdTable.GetFDs(ctx) {
+			file, _ := fdTable.Get(guestFD)
+			if file == nil {
+				continue
+			}
+			if match(file.Impl()) {
+				matchedFDs = append(matchedFDs, guestFD)
+			}
+			file.DecRef(ctx)
+		}
+		if len(matchedFDs) > 0 {
+			holders = append(holders, holderInfo{
+				pid: leader.ThreadID(),
+				fds: matchedFDs,
+			})
+		}
+	})
+	if len(holders) == 0 {
+		return "(no guest processes found holding this FD)"
+	}
+	var sb strings.Builder
+	for i, h := range holders {
+		if i > 0 {
+			sb.WriteString("; ")
+		}
+		fmt.Fprintf(&sb, "PID %d (guest fds %v)", h.pid, h.fds)
+	}
+	return sb.String()
+}
+
 func (fd *frontendFD) beforeSaveImpl() {
-	panic("nvproxy.frontendFD is not saveable")
+	holders := nvidiaFDHolders(fd.dev.nvp.k, func(impl vfs.FileDescriptionImpl) bool {
+		return impl == fd
+	})
+	panic(fmt.Sprintf("nvproxy.frontendFD is not saveable (hostFD=%d, dev=%s); holders: %s", fd.hostFD, fd.dev.basename(), holders))
 }
 
 func (fd *frontendFD) afterLoadImpl(goContext.Context) {
@@ -42,7 +104,10 @@ func (fd *frontendFD) afterLoadImpl(goContext.Context) {
 }
 
 func (fd *uvmFD) beforeSaveImpl() {
-	panic("nvproxy.uvmFD is not saveable")
+	holders := nvidiaFDHolders(fd.dev.nvp.k, func(impl vfs.FileDescriptionImpl) bool {
+		return impl == fd
+	})
+	panic(fmt.Sprintf("nvproxy.uvmFD is not saveable (hostFD=%d); holders: %s", fd.hostFD, holders))
 }
 
 func (fd *uvmFD) afterLoadImpl(goContext.Context) {

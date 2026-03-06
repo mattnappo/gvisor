@@ -67,6 +67,7 @@ func (dev *frontendDevice) Open(ctx context.Context, mnt *vfs.Mount, vfsd *vfs.D
 	if err != nil {
 		return nil, err
 	}
+	ctx.Infof("nvproxy: opened %s, hostFD=%d", dev.basename(), fd.hostFD)
 	if err := fd.vfsfd.Init(fd, opts.Flags, auth.CredentialsFromContext(ctx), mnt, vfsd, &vfs.FileDescriptionOptions{
 		UseDentryMetadata: true,
 	}); err != nil {
